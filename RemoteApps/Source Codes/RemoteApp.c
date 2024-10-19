@@ -4,13 +4,22 @@
 #include <stdlib.h>
 #include <time.h>
 
-
 #pragma comment(lib, "ws2_32.lib") //Winsock Library
 
 #define DEFAULT_BUFLEN 16384
 #define DEFAULT_PORT 9999
-#define CANARY 0x11223344
 
+void callWriteProcessMemory() {
+    // Parâmetros para WriteProcessMemory
+    HANDLE hProcess = GetCurrentProcess();  // Processo atual
+    LPVOID lpBaseAddress = (LPVOID)0x00000000;  // Endereço arbitrário
+    char buffer[12] = "HelloWorld";
+    SIZE_T nSize = sizeof(buffer);
+    SIZE_T lpNumberOfBytesWritten;
+
+    // Executa WriteProcessMemory
+    WriteProcessMemory(hProcess, lpBaseAddress, buffer, nSize, &lpNumberOfBytesWritten);
+}
 
 void Function0(SOCKET clientSock, char* userInput) {
 	HMODULE hModule;
@@ -38,7 +47,6 @@ void Function0(SOCKET clientSock, char* userInput) {
 		send(clientSock, message, strlen(message), 0);
 	}
 }
-
 
 void Function1(SOCKET clientSock, char* userInput) {
 	HMODULE hModule;
@@ -96,8 +104,6 @@ void Function3(char* userInput) {
 	memcpy(buf, userInput, DEFAULT_BUFLEN);
 }
 
-
-
 void handleConnection(SOCKET clientSock) {
 
 	char* VERSION = "REMOTE APP VERSION: 1.0\n";
@@ -129,84 +135,12 @@ void handleConnection(SOCKET clientSock) {
 		printf("[+] recv completed\n");
 	}
 
-	unsigned int userCanary;
-	memcpy(&userCanary, &userInput, sizeof(unsigned int));
-	printf("User Canary: %x\n", userCanary);
-
-	if (CANARY != (userCanary ^ recvLen)) {
-		char* message = "Stack cookies still alive :(\n";
-		send(clientSock, message, strlen(message), 0);
-		closesocket(clientSock);
-		WSACleanup();
-		exit(1);
-	}
-	else {
-		char* message = "Stack cookies disabled :)\n";
-		send(clientSock, message, strlen(message), 0);
-	}
-
-
-	if (userInput[4] != 'A') {
-		char* message = "Second check doesn't passed :(\n";
-		send(clientSock, message, strlen(message), 0);
-		closesocket(clientSock);
-		WSACleanup();
-		exit(1);
-	}
-	else if (userInput[4] == 'A') {
-		char* message = "Second check passed :)\n";
-		send(clientSock, message, strlen(message), 0);
-	}
-
-
-	if (userInput[5] != 'B') {
-		char* message = "Third check doesn't passed :(";
-		send(clientSock, message, strlen(message), 0);
-		closesocket(clientSock);
-		WSACleanup();
-		exit(1);
-	}
-	else if (userInput[5] == 'B') {
-		char* message = "Third check passed :)";
-		send(clientSock, message, strlen(message), 0);
-	}
-
-	unsigned int opcode = 0;
-	memcpy(&opcode, (char*)userInput + 6, sizeof(unsigned int));
-	printf("User opcode: %d\n", opcode);
-
-	switch (opcode) {
-	case 899:
-		printf("Calling Function0\n");
-		Function0(clientSock, (char*)userInput);
-		send(clientSock, "[+] 899 option compeleted", 25, 0);
-		break;
-	case 900:
-		printf("Calling Function1\n");
-		Function1(clientSock, (char*)userInput);
-		send(clientSock, "[+] 900 option compeleted", 25, 0);
-		break;
-	case 901:
-		printf("Calling Function2\n");
-		Function2(clientSock, (char*)userInput);
-		send(clientSock, "[+] 901 option compeleted", 25, 0);
-		break;
-	case 902:
-		printf("Calling Function3\n");
-		Function3((char*)userInput);
-		break;
-	default:
-		printf("[-] Wrong opcode\n");
-		break;
-	}
-	
+	callWriteProcessMemory(); // Chama a função WriteProcessMemory
 
 	closesocket(clientSock);
 	printf("%d thread ended connecion!\n", GetCurrentThread());
 
 }
-
-
 
 int main(int argc, char* argv[])
 {
@@ -223,7 +157,6 @@ int main(int argc, char* argv[])
 	else {
 		printf("[+] Initialised\n");
 	}
-
 
 	if ((s = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
 		printf("[-] Could not create socket : %d\n", WSAGetLastError());
@@ -254,11 +187,10 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 	else {
-		printf("[+] Wainting for incoming connection....\n");
+		printf("[+] Waiting for incoming connection....\n");
 	}
 
 	c = sizeof(struct sockaddr_in);
-
 
 	while ((newSocket = accept(s, (struct sockaddr*)&client, &c)) != INVALID_SOCKET) {
 		printf("[+] Client connected\n");
@@ -275,7 +207,6 @@ int main(int argc, char* argv[])
 	closesocket(s);
 	closesocket(newSocket);
 	WSACleanup();
-
 
 	return 0;
 }
